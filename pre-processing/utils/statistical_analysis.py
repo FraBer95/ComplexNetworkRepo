@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 
 def statistical_test(data):
 
+    #variable cast to float and Correlation Matrix Computation
     for col in data.columns:
         data[col]=data[col].astype(float)
 
@@ -18,7 +19,7 @@ def statistical_test(data):
     plt.title("Correlation Matrix")
     plt.savefig("./images/correlation_matrix.png")
 
-    correlation_threshold = 0.60
+    correlation_threshold = 0.60 #correlation threshold for correlated features
     high_correlation_pairs = []
     for i in range(len(corr_mat.columns)):
         for j in range(i + 1, len(corr_mat.columns)):
@@ -28,6 +29,8 @@ def statistical_test(data):
                 correlation_value = corr_mat.iloc[i, j]
                 high_correlation_pairs.append((v1, v2, correlation_value))
     drop_list = []
+
+    #filtering feature pairs according correlation (I keep the feature with a major number of unique values)
     for pair in high_correlation_pairs:
         print(f"Coppia: {pair[0]} - {pair[1]}, Correlazione: {pair[2]}")
         count_first = len(data[pair[0]].unique())
@@ -50,7 +53,7 @@ def statistical_test(data):
     for column in data.columns:
         unique_values = data[column].nunique()
 
-        if unique_values <= threshold:
+        if unique_values <= threshold: #if a feature presents more than 10 unique value, consider it as categorical
             categorical_features.append(column)
         else:
             continuous_features.append(column)
@@ -69,7 +72,7 @@ def statistical_test(data):
                     "P-Value": []
                 }
 
-    # Chi squared Test
+    #Computing P-Value using Chi squared Test (categorical)
 
     for feature in data_cat.columns:
 
@@ -84,7 +87,7 @@ def statistical_test(data):
             print(f"P-value: {p}")
             print("------------------")
 
-    # Mann-Whitney U Test
+    #Computing P-Value using Mann-Whitney U Test (numeric features)
     group1 = data_con[labels == 0]
     group2 = data_con[labels == 1]
 
@@ -137,7 +140,7 @@ def statistical_test(data):
         print("\n" + "-" * 50 + "\n")
 
 
-    # Show continuos features distribution
+    #Show continuos features distribution
 
     sns.set_style('whitegrid')
     for feature in data_con.columns:
