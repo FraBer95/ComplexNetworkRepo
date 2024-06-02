@@ -3,6 +3,8 @@ import numpy as np
 from tqdm import tqdm
 from sklearn. model_selection import train_test_split
 def read_data(path):
+
+    #reading data and renaming columns
     data = pd.read_excel(path)
     data.rename(columns={'Status in vita (0=vivo; 1=morto)': 'Status',
                          'Stato civile (0=coniugato; 1=non coniugato)': 'Status Civile', 'Sesso (0=F;1=M)': 'Sesso'
@@ -18,19 +20,24 @@ def read_data(path):
 
 
 def preprocess(data):
+    #drop non relevant features
     drop_list = ["Anemia", "FE", "ODI", "Data Ricovero", "Data Dimissione", "Data Follow-up", 'I.D.']
 
     print("Dropping: {}".format(drop_list))
 
     data.drop(columns=drop_list, axis=1, inplace=True)
 
+    #dummy variables, with 1 and null -> fill null with 0
     for col in data.columns:
         if col in ["Normal weight", "Overweight", "Obesity class I", "Obesity class II", "Morbid Obesity"]:
             data[col].fillna(0, inplace=True)
 
-    data['prof_descr'].fillna('ALTRO                                        ', inplace=True)
+
 
     data["GOLD"].fillna("GOLD 0", inplace=True)
+
+    #Grouping prefessions description in binnings
+    data['prof_descr'].fillna('ALTRO                                        ', inplace=True)
 
     lavoro_leggero = ['PENSIONATO (che ha svolto lavoro retribuito) ',
                       'CASALINGA (non ha mai svolto lavoro retr.)   ',
@@ -58,12 +65,10 @@ def preprocess(data):
     data['prof_descr'].loc[(data['prof_descr'].isin(lavoro_pesante))] = 4
     data['prof_descr'].loc[(data['prof_descr'].isin(altro))] = 5
     data['prof_descr'].astype(np.float64)
-    #
-    data.loc[(data['Age'] <= 17), 'Age'] = 0
-    data.loc[(data['Age'] > 17) & (data['Age'] <= 35), 'Age'] = 1
-    data.loc[(data['Age'] > 35) & (data['Age'] <= 53), 'Age'] = 2
-    data.loc[(data['Age'] > 53) & (data['Age'] <= 71), 'Age'] = 3
-    data.loc[(data['Age'] > 71), 'Age'] = 4
+
+    #categorizing Age feature
+    data.loc[(data['Age'] <= 65), 'Age'] = 0
+    data.loc[(data['Age'] > 65), 'Age'] = 1
 
     print(data['prof_descr'].unique())
 
@@ -83,14 +88,14 @@ def preprocess(data):
     data.loc[mask_men | mask_wom, 'Anemia'] = 1.0
     data.drop(columns=["Emoglobina", "Ematocrito"], axis=1, inplace=True)
 
-    # Creo delle categorie basate sul valore del GFR
+    # Categorizing GFR in 4 categories
     data['GFR Categories'] = pd.cut(data['GFR'],
                                     bins=[-float('inf'), 29, 44, 59, float('inf')],
                                     labels=['3', '2', '1', '0'],
                                     right=False)
     data.drop(columns=["GFR"], axis=1, inplace=True)
 
-    # BMI categories
+    # CAtegorizing BMI in 5 classes
     weight_class = ['Normal weight', 'Overweight', 'Obesity class I', 'Obesity class II', 'Morbid Obesity']
     data.drop(columns=weight_class, axis=1, inplace=True)
     data['BMI Categories'] = pd.cut(data['BMI'],
@@ -109,6 +114,8 @@ def preprocessing_CPAP(data):
     drop_list = ["id_cod"]
     print("Dropping: {}".format(drop_list))
     data.drop(columns=drop_list, axis=1, inplace=True)
+
+    #CPAP treatment duration computation and categorization
     data['CPAP_bin'] = data['CPAP'].notna().astype(int)
     data['CPAP'] = pd.to_datetime(data['CPAP'])
     data['ricovero_data'] = pd.to_datetime(data['ricovero_data'])
@@ -137,22 +144,22 @@ def preprocessing_CPAP(data):
 
 def train_test_time_split(data):
     for state in tqdm(range(0, 1000)):
-        # divide data in training and test
+        #divide data in training and test
         train, test = train_test_split(data, random_state=state, test_size=0.30, shuffle=True,
                                        stratify=data[['Status']])
         time = 'Durata follow-up da dimissione'
         train[time] = train[time]
         test[time] = test[time]
 
-        # range values for observation time in test
+        #computing range values for observation time in test
         durata_follow_up_min_test = test['Durata follow-up da dimissione'].min()
         durata_follow_up_max_test = test['Durata follow-up da dimissione'].max()
 
-        # range values for observation time in train
+        # ange values for observation time in train
         durata_follow_up_min_train = train['Durata follow-up da dimissione'].min()
         durata_follow_up_max_train = train['Durata follow-up da dimissione'].max()
 
-        # check if the test range is contained in training
+        #check if the test range is included in training
         if durata_follow_up_min_test >= durata_follow_up_min_train and durata_follow_up_max_test <= durata_follow_up_max_train:
             print(f"Random state {state}")
             # train.to_csv('./dataset/data_CPAP_train.csv', index=False)
